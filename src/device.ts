@@ -61,8 +61,8 @@ export class ChipDatabase {
 
   find(chipId: number, deviceType: number): Chip | undefined {
     for (const family of this.families) {
-      if ((family.deviceType & 0xff) !== (deviceType & 0xff)) continue;
       for (const variant of family.variants) {
+        if (((variant.deviceType ?? family.deviceType) & 0xff) !== (deviceType & 0xff)) continue;
         const ids = variant.altChipIds === '*' ? [] : variant.altChipIds ?? [];
         if (variant.altChipIds === '*' || variant.chipId === chipId || ids.includes(chipId)) {
           return mergeFamilyChip(family, variant);
@@ -150,9 +150,12 @@ export const BUILTIN_CHIPS: ChipFamily[] = normalizeFamilies([
     { name: 'CH32V203', chipId: 0x20, deviceType: 0x12, flashSize: 64 * 1024 },
     { name: 'CH32V208', chipId: 0x21, deviceType: 0x12, flashSize: 128 * 1024 },
   ], configRegisters: basicConfig },
-  { name: 'CH32V30x', mcuType: 0x00, deviceType: 0x10, supportUsb: true, supportSerial: true, variants: [
-    { name: 'CH32V307', chipId: 0x70, deviceType: 0x17, flashSize: 256 * 1024, eepromSize: 0 },
-    { name: 'CH32V305', chipId: 0x70, deviceType: 0x15, flashSize: 256 * 1024, eepromSize: 0 },
+  // ch32-rs/wchisp devices/0x17-CH32V30x.yaml: mcu_type 7, device_type 0x17.
+  { name: 'CH32V30x', mcuType: 0x07, deviceType: 0x17, supportUsb: true, supportSerial: true, variants: [
+    { name: 'CH32V307VCT6', chipId: 0x70, deviceType: 0x17, flashSize: 256 * 1024, eepromSize: 0 },
+    { name: 'CH32V307RCT6', chipId: 0x71, deviceType: 0x17, flashSize: 256 * 1024, eepromSize: 0 },
+    { name: 'CH32V307WCU6', chipId: 0x73, deviceType: 0x17, flashSize: 256 * 1024, eepromSize: 0 },
+    { name: 'CH32V305RBT6', chipId: 0x50, deviceType: 0x17, flashSize: 128 * 1024, eepromSize: 0 },
   ], configRegisters: basicConfig },
   { name: 'CH55x', mcuType: 0x05, deviceType: 0x11, supportUsb: true, supportSerial: true, variants: [
     { name: 'CH552', chipId: 0x52, deviceType: 0x11, flashSize: 16 * 1024, eepromSize: 128 },

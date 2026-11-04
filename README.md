@@ -6,6 +6,17 @@ A browser-oriented TypeScript port of the core [`ch32-rs/wchisp`](https://github
 
 Published npm package: https://www.npmjs.com/package/wchisp-web
 
+## ArthurHeymans fork
+
+This fork fixes CH32V30x identification against the native wchisp device table,
+rejects unknown chips and invalid images before flashing, and adds WebUSB
+transfer deadlines/cleanup. Tests run with `npm test`; type-check with
+`npm run typecheck`. The existing npm release above does not contain these fixes.
+For a git dependency, pin an exact commit of `ArthurHeymans/wchisp-web`;
+`prepare` builds the library during installation. Source and build configuration
+are included with the package for redistribution alongside the GPL-2.0 library.
+No physical device testing is implied by the mocked transport tests.
+
 ## Install/build
 
 Node.js 18+ is required. Then install dependencies and build the library:

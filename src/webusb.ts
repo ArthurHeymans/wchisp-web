@@ -44,6 +44,8 @@ export class WebUsbTransport implements Transport {
   static readonly DEFAULT_ENDPOINT_IN = 0x82;
   static readonly DEFAULT_INTERFACE = 0;
 
+  private failed = false;
+
   private constructor(private device: UsbDevice, private options: Required<WchWebUsbOptions>) {}
 
   static async request(options: WchWebUsbOptions = {}): Promise<WebUsbTransport> {
@@ -74,8 +76,13 @@ export class WebUsbTransport implements Transport {
       endpointIn: options.endpointIn ?? WebUsbTransport.DEFAULT_ENDPOINT_IN,
     };
     const t = new WebUsbTransport(device, normalized);
-    await t.open();
-    return t;
+    try {
+      await t.open();
+      return t;
+    } catch (error) {
+      await t.close();
+      throw error;
+    }
   }
 
   async open(): Promise<void> {
@@ -89,21 +96,42 @@ export class WebUsbTransport implements Transport {
 
   async sendRaw(raw: Uint8Array): Promise<void> {
     const endpoint = endpointNumber(this.options.endpointOut);
-    const result = await this.device.transferOut(endpoint, raw as Uint8Array<ArrayBuffer>);
+    const result = await this.withTimeout(() => this.device.transferOut(endpoint, raw as Uint8Array<ArrayBuffer>), 5000);
     if (result.status !== 'ok') throw new Error(`USB transferOut failed: ${result.status}`);
+    if (result.bytesWritten !== raw.byteLength) throw new Error('USB transferOut was incomplete');
   }
 
-  async recvRaw(_timeoutMs = 5000): Promise<Uint8Array> {
+  async recvRaw(timeoutMs = 5000): Promise<Uint8Array> {
     const endpoint = endpointNumber(this.options.endpointIn);
-    const result = await this.device.transferIn(endpoint, 64);
+    const result = await this.withTimeout(() => this.device.transferIn(endpoint, 64), timeoutMs);
     if (result.status !== 'ok') throw new Error(`USB transferIn failed: ${result.status}`);
     if (!result.data) throw new Error('USB transferIn returned no data');
     return new Uint8Array(result.data.buffer, result.data.byteOffset, result.data.byteLength).slice();
   }
 
   async close(): Promise<void> {
-    try { await this.device.releaseInterface(this.options.interfaceNumber); } catch {}
+    this.failed = true;
+    // Closing also releases interfaces, and aborts any pending transfer.
     try { await this.device.close(); } catch {}
+  }
+
+  private async withTimeout<T>(operation: () => Promise<T>, timeoutMs: number): Promise<T> {
+    if (this.failed) throw new Error('USB transport is closed; reconnect before retrying');
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        operation(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`USB transfer timed out after ${timeoutMs} ms`)), timeoutMs);
+        }),
+      ]);
+    } catch (error) {
+      // Do not let a late response be consumed as the next command's reply.
+      void this.close();
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private validateEndpoints(): void {

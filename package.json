@@ -16,11 +16,17 @@
   "sideEffects": false,
   "files": [
     "dist",
+    "src",
+    "tsconfig.json",
+    "rolldown.config.js",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "rolldown -c",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "prepare": "npm run build",
     "serve": "npx serve . -p 8294",
     "dev": "npx concurrently \"tsc -p tsconfig.json --watch\" \"npm run serve\"",
     "prepublishOnly": "npm run build"

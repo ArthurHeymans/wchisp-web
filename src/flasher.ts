@@ -70,7 +70,8 @@ export class WchIspFlasher {
     const chip = this.chipDb.find(chipId, deviceType);
     progress?.({ phase: 'identify', done: 1, total: 1, message: chipDisplayName(chip, chipId, deviceType) });
     const config = await this.readConfig(CFG_MASK_ALL, progress);
-    const codeFlashProtected = Boolean(config.length >= 3 && config[2] !== 0xa5);
+    if (config.length < 22) throw new Error('read_config response too short for config, bootloader version and UID');
+    const codeFlashProtected = config[2] !== 0xa5;
     const bootloader = config.slice(14, 18);
     const uid = config.slice(18);
     this.info = {
@@ -142,11 +143,19 @@ export class WchIspFlasher {
 
   async flash(input: Uint8Array | string | FirmwareImage | File, options: FlashOptions = {}): Promise<ConnectedChip> {
     const info = await this.ensureConnected(options.progress);
-    if (options.unprotect) await this.unprotect(false, options.progress);
+    if (!info.chip) throw new Error('Refusing to flash an unknown chip');
     const image = await this.normalizeFirmware(input);
     const baseAddress = options.baseAddress ?? image.baseAddress;
     if (baseAddress !== 0) throw new Error(`Only images starting at address 0 are directly flashable; got base address 0x${baseAddress.toString(16)}`);
     const data = options.pad === false ? image.data : padToSector(image.data);
+    if (data.length === 0 || data.length > info.chip.flashSize) {
+      throw new Error(`Invalid firmware size ${data.length} for ${info.chip.name} (${info.chip.flashSize} bytes)`);
+    }
+    if (info.codeFlashProtected && !options.unprotect) {
+      throw new Error('Code flash is protected; explicit unprotect is required');
+    }
+    // Validate the complete image before any potentially destructive operation.
+    if (options.unprotect) await this.unprotect(false, options.progress);
     if (options.erase !== false) await this.eraseCode(data.length, 'bytes', options.progress);
     await this.beginIspKey();
     await this.writeCode(data, options.progress);
