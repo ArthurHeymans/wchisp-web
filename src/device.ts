@@ -1,3 +1,4 @@
+// ArthurHeymans fork changes (2026-03-28): CH32V30x identity and variant lookup fixes.
 import { readLe32 } from './protocol.js';
 
 export type ConfigField = {

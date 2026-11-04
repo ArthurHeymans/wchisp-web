@@ -1,3 +1,4 @@
+// ArthurHeymans fork changes (2026-03-28): reject unsafe images/devices before erase.
 import {
   CFG_MASK_ALL,
   CFG_MASK_RDPR_USER_DATA_WPR,

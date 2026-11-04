@@ -1,3 +1,4 @@
+// ArthurHeymans fork changes (2026-03-28): transfer deadlines and session cleanup.
 import { Transport } from './transport.js';
 
 export type WchWebUsbOptions = {
